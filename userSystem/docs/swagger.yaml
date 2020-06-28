@@ -1,0 +1,122 @@
+definitions:
+  app.Response:
+    properties:
+      code:
+        type: integer
+      data:
+        type: object
+      msg:
+        type: string
+    type: object
+  v1.MailCodeBody:
+    properties:
+      email:
+        type: string
+      type:
+        type: integer
+    required:
+    - email
+    - type
+    type: object
+  v1.RegisteredBody:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - code
+    - email
+    - password
+    - username
+    type: object
+info:
+  contact: {}
+  description: 登录注册模块设计：密文传输+jwt身份验证
+  license: {}
+  title: userSystem
+  version: "1.0"
+paths:
+  /api/v1/test/get:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 测试Get请求
+      tags:
+      - 测试
+  /api/v1/test/tmpl:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 测试tmpl模板文件
+      tags:
+      - 测试
+  /api/v1/user/registered:
+    post:
+      parameters:
+      - description: 注册信息
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/v1.RegisteredBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 注册用户
+      tags:
+      - 用户
+  /api/v1/user/sendMailCode:
+    post:
+      parameters:
+      - description: 发送验证码
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/v1.MailCodeBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 发送验证码
+      tags:
+      - 用户
+swagger: "2.0"
