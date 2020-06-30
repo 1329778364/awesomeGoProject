@@ -26,7 +26,7 @@ func InitValidator() {
 	Validate.RegisterValidation("checkUsername", checkUsername)
 	// 根据自定义的标记注册翻译
 	Validate.RegisterTranslation("checkUsername", trans, func(ut ut.Translator) error {
-		return ut.Add("checkUsername", "{0}必须以英文字母开头，由字母、数字、下划线组成的4-16位字符，其中下划线不可以出现在开头或结尾", true)
+		return ut.Add("checkUsername", "{0}必须是由字母开头的4-16位字母和数字组成的字符串", true)
 	}, func(ut ut.Translator, fe validator.FieldError) string {
 		t, _ := ut.T("checkUsername", fe.Field())
 		return t
@@ -42,11 +42,20 @@ func Translate(errs validator.ValidationErrors) string {
 }
 
 func checkUsername(fl validator.FieldLevel) bool {
-	username := fl.Field().String()
-	if ok, _ := regexp.MatchString(`^[a-zA-Z][a-z0-9A-Z]*(_[a-z0-9A-Z]+)*$`, username); !ok {
+	return VerifyUsernameFormat(fl.Field().String())
+}
+
+func VerifyUsernameFormat(username string) bool {
+	if ok, _ := regexp.MatchString(`^[a-zA-Z]{1}[a-zA-Z0-9]{3,15}$`, username); !ok {
 		return false
 	}
 	return true
+}
+
+func VerifyEmailFormat(email string) bool {
+	ok := regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+(?:\\.([a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+)*)|(?:(?:\\x22)(?:(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(?:\\x20|\\x09)+)?(?:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]|\\x21|[\\x23-\\x5b]|[\\x5d-\\x7e]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[\\x01-\\x09\\x0b\\x0c\\x0d-\\x7f]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}]))))*(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(\\x20|\\x09)+)?(?:\\x22))))@(?:(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.)+(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.?$").
+		MatchString(email)
+	return ok
 }
 
 func VerifyPasswordFormat(password string) bool {

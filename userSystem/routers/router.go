@@ -35,6 +35,7 @@ func InitRouter() *gin.Engine {
 	{
 		user.POST("/sendMailCode", v1.SendMailCode)
 		user.POST("/registered", v1.Registered)
+		user.POST("/find", v1.Find)
 	}
 	return r
 }

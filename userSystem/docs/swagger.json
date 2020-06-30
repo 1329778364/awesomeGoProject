@@ -58,6 +58,45 @@
                 }
             }
         },
+        "/api/v1/user/find": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "登录时，当用户输入用户名或邮箱后，就调用该接口判断当前手机号是否注册",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户名",
+                        "name": "username",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "邮箱",
+                        "name": "email",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/app.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/app.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user/registered": {
             "post": {
                 "produces": [
@@ -102,7 +141,7 @@
                 "tags": [
                     "用户"
                 ],
-                "summary": "发送验证码",
+                "summary": "用户注册前和忘记密码的时候请求发送验证码",
                 "parameters": [
                     {
                         "description": "发送验证码",

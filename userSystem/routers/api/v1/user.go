@@ -19,14 +19,7 @@ type MailCodeBody struct {
 	Type  MailType `json:"type" validate:"required,gt=0"`
 }
 
-type RegisteredBody struct {
-	UserName string `json:"username" validate:"required,checkUsername,max=16,min=4"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,base64"`
-	Code     string `json:"code" validate:"required,number,len=6"`
-}
-
-// @Summary 发送验证码
+// @Summary 用户注册前和忘记密码的时候请求发送验证码
 // @Tags 用户
 // @Produce json
 // @Param data body MailCodeBody true "发送验证码"
@@ -76,6 +69,13 @@ func SendMailCode(c *gin.Context) {
 	}
 }
 
+type RegisteredBody struct {
+	UserName string `json:"username" validate:"required,checkUsername"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,base64"`
+	Code     string `json:"code" validate:"required,number,len=6"`
+}
+
 // @Summary 注册用户
 // @Tags 用户
 // @Produce json
@@ -115,6 +115,35 @@ func Registered(c *gin.Context) {
 		return
 	}
 	appG.SuccessResponse("注册成功")
+}
+
+// @Summary 登录时，当用户输入用户名或邮箱后，就调用该接口判断当前手机号是否注册
+// @Tags 用户
+// @Produce json
+// @Param username query string false "用户名"
+// @Param email query string false "邮箱"
+// @Success 200 {object} app.Response
+// @Failure 500 {object} app.Response
+// @Router /api/v1/user/find [post]
+func Find(c *gin.Context) {
+	appG := app.Gin{C: c}
+	username := c.Query("username")
+	email := c.Query("email")
+	if username != "" && email == "" {
+		if !validator.VerifyUsernameFormat(username) {
+			appG.BadResponse("用户名不合法")
+			return
+		}
+		appG.SuccessResponse(username)
+	} else if username == "" && email != "" {
+		if !validator.VerifyEmailFormat(email) {
+			appG.BadResponse("邮箱不合法")
+			return
+		}
+		appG.SuccessResponse(email)
+	} else {
+		appG.BadResponse("请输入用户名或邮箱")
+	}
 }
 
 //TODO: 用户登录
