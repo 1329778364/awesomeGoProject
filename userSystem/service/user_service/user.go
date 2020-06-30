@@ -6,25 +6,30 @@ import (
 	"userSystem/pkg/gredis"
 	"userSystem/pkg/mail"
 	"userSystem/pkg/util"
+	"userSystem/pkg/validator"
 )
 
 type ActionType interface {
-	GetEmail() string
-	GetCodeStr() string
-	GetPriKeyStr() string
+	ID() string
+	CodeKey() string
+	PubKey() string
+	PriKey() string
 }
 
 type Registered struct {
 	Email string
 }
 
-func (r *Registered) GetEmail() string {
+func (r *Registered) ID() string {
 	return r.Email
 }
-func (r *Registered) GetCodeStr() string {
+func (r *Registered) CodeKey() string {
 	return "registeredCode-" + r.Email
 }
-func (r *Registered) GetPriKeyStr() string {
+func (r *Registered) PubKey() string {
+	return ""
+}
+func (r *Registered) PriKey() string {
 	return "registeredPriKey-" + r.Email
 }
 
@@ -32,64 +37,78 @@ type RecoverPassword struct {
 	Email string
 }
 
-func (r *RecoverPassword) GetEmail() string {
+func (r *RecoverPassword) ID() string {
 	return r.Email
 }
-func (r *RecoverPassword) GetCodeStr() string {
+func (r *RecoverPassword) CodeKey() string {
 	return "recoverPasswordCode-" + r.Email
 }
-func (r *RecoverPassword) GetPriKeyStr() string {
+func (r *RecoverPassword) PubKey() string {
+	return ""
+}
+func (r *RecoverPassword) PriKey() string {
 	return "recoverPasswordPriKey-" + r.Email
 }
 
 type Login struct {
-	Email string
+	UserId string
 }
 
-func (l *Login) GetEmail() string {
-	return l.Email
+func (l *Login) ID() string {
+	return l.UserId
 }
-func (l *Login) GetCodeStr() string {
+func (l *Login) CodeKey() string {
 	return ""
 }
-func (l *Login) GetPriKeyStr() string {
-	return "loginPriKey-" + l.Email
+func (l *Login) PubKey() string {
+	return "loginPubKey-" + l.UserId
+}
+func (l *Login) PriKey() string {
+	return "loginPriKey-" + l.UserId
 }
 
+var (
+	LoginErrNum = func(userId string) string {
+		return "loginErrNum-" + userId
+	}
+)
+
 //判断用户是否已存在
-func CheckUser(username, email string) (bool, error) {
-	var errStr string
+func CheckUser(query string) (userId string, err error) {
+	var username, email, errStr string
+	if validator.VerifyEmailFormat(query) {
+		email = query
+	} else if validator.VerifyUsernameFormat(query) {
+		username = query
+	}
 	if username != "" {
-		isExistUsername, err := models.CheckUser(username, "")
+		userId, err = models.CheckUser(username, "")
 		if err != nil {
-			return false, err
+			return "", err
 		}
-		if isExistUsername {
+		if userId != "" {
 			errStr += "用户名已注册"
 		}
 	}
 	if email != "" {
-		isExistEmail, err := models.CheckUser("", email)
+		userId, err = models.CheckUser("", email)
 		if err != nil {
-			return false, err
+			return "", err
 		}
-		if isExistEmail {
-			if errStr != "" {
-				errStr += " | "
-			}
+		if userId != "" {
 			errStr += "邮箱已注册"
 		}
 	}
 	if errStr != "" {
-		return true, errmsg.NewBadMsg(errStr)
+		return userId, errmsg.NewBadMsg(errStr)
 	}
-	return false, nil
+	return "", nil
 }
 
-//发送验证码
+//发送验证码(注册或忘记密码)
 func SendCode(actionType ActionType) (string, error) {
-	codeStr := actionType.GetCodeStr()
-	priKeyStr := actionType.GetPriKeyStr()
+	codeStr := actionType.CodeKey()
+	priKeyStr := actionType.PriKey()
 	//距离上一次发送要超过2分钟的时间才能重新发送
 	times, err := gredis.GetTTL(codeStr)
 	if err != nil {
@@ -106,17 +125,17 @@ func SendCode(actionType ActionType) (string, error) {
 	//生成6位数字验证码
 	code := util.GetRandomCode(6)
 	//将验证码保存到Redis缓存，15分钟有效期
-	if err := gredis.Set(codeStr, code, 15*60); err != nil {
+	if err := gredis.Set(map[string]string{codeStr: code}, 15*60); err != nil {
 		return "", err
 	}
 	//将私钥保存到Redis缓存，15分钟有效期
-	if err := gredis.Set(priKeyStr, priKey, 15*60); err != nil {
+	if err := gredis.Set(map[string]string{priKeyStr: priKey}, 15*60); err != nil {
 		//发生错误，立即删除验证码缓存
 		gredis.Delete(codeStr)
 		return "", err
 	}
 	//发送验证码
-	if err := mail.SendMail(actionType.GetEmail(), code); err != nil {
+	if err := mail.SendMail(actionType.ID(), code); err != nil {
 		//发生错误，立即删除验证码缓存和私钥缓存
 		gredis.Delete(codeStr)
 		gredis.Delete(priKeyStr)
@@ -125,26 +144,60 @@ func SendCode(actionType ActionType) (string, error) {
 	return pubKey, nil
 }
 
-//使用RSA私钥解密密码
+//生成用于登录的密钥对
+func GenerateLoginKey(userId string) (string, error) {
+	actionType := &Login{UserId: userId}
+	//原来的公钥有效时间大于15分钟，继续使用
+	times, err := gredis.GetTTL(actionType.PubKey())
+	if err != nil {
+		return "", err
+	}
+	if times > 15*60 {
+		pubKey, err := gredis.Get(actionType.PubKey())
+		if err != nil {
+			return "", err
+		}
+		return pubKey, nil
+	}
+	//生成RSA密钥对
+	pubKey, priKey, err := util.GenRsaKey(2048)
+	if err != nil {
+		return "", err
+	}
+	//将密钥对保存到Redis缓存，30分钟有效期
+	if err := gredis.Set(map[string]string{
+		actionType.PubKey(): pubKey,
+		actionType.PriKey(): priKey},
+		30*60); err != nil {
+		//发生错误，立即删除密钥对缓存
+		gredis.Delete(actionType.PubKey())
+		gredis.Delete(actionType.PriKey())
+		return "", err
+	}
+	return pubKey, nil
+}
+
+//使用RSA私钥解密密码(注册或登录或忘记密码)
 func DecryptPassword(actionType ActionType, password string) (string, error) {
-	priKey, err := gredis.Get(actionType.GetPriKeyStr())
+	priKey, err := gredis.Get(actionType.PriKey())
 	if err != nil {
 		return "", err
 	}
 	if priKey == "" {
-		return "", errmsg.NewBadMsg("密钥获取失败，请重新获取验证码后再注册")
+		return "", errmsg.NewBadMsg("密钥获取失败，请重新获取验证码后再操作")
 	}
 	pw, err := util.PrivateDecrypt(priKey, password)
 	if err != nil {
-		return "", errmsg.NewBadMsg("密钥验证失败，请重新获取验证码后再注册")
+		return "", errmsg.NewBadMsg("密钥验证失败，请重新获取验证码后再操作")
 	}
 	return pw, nil
 }
 
 //注册
-func UserRegistered(actionType ActionType, username, password, code string) error {
+func UserRegistered(email, username, password, code string) error {
+	actionType := &Registered{Email: email}
 	//从缓存获取验证码
-	gcode, err := gredis.Get(actionType.GetCodeStr())
+	gcode, err := gredis.Get(actionType.CodeKey())
 	if err != nil {
 		return err
 	}
@@ -162,7 +215,7 @@ func UserRegistered(actionType ActionType, username, password, code string) erro
 	err = models.User{
 		UserID:   util.GetUUIDString(false),
 		UserName: username,
-		Email:    actionType.GetEmail(),
+		Email:    actionType.ID(),
 		Password: md5PW,
 		Salt:     salt,
 	}.InsertUser()
@@ -170,8 +223,30 @@ func UserRegistered(actionType ActionType, username, password, code string) erro
 		return err
 	}
 	//删除缓存验证码
-	gredis.Delete(actionType.GetCodeStr())
+	gredis.Delete(actionType.CodeKey())
 	//删除缓存私钥
-	gredis.Delete(actionType.GetPriKeyStr())
+	gredis.Delete(actionType.PriKey())
+	return nil
+}
+
+//登录
+func UserLogin(userId, password string) error {
+	actionType := &Login{UserId: userId}
+	//从数据库获取用户
+	user, err := models.GetUserById(userId)
+	if err != nil {
+		return err
+	}
+	//判断密码是否正确
+	if util.MD5(password+user.Salt) != user.Password {
+		//记录密码输出次数
+		if err := gredis.Incr(LoginErrNum(userId), util.GetRemainSecondsOneDay()); err != nil {
+			return err
+		}
+		return errmsg.NewBadMsg("密码错误")
+	}
+	//删除缓存密钥对
+	gredis.Delete(actionType.PubKey())
+	gredis.Delete(actionType.PriKey())
 	return nil
 }

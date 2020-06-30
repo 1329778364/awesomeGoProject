@@ -37,40 +37,24 @@ func (u User) InsertUser() error {
 }
 
 // 检查用户是否存在
-func CheckUser(username, email string) (bool, error) {
+func CheckUser(username, email string) (string, error) {
 	var user User
-	err := db.Select("user_id").Where(User{UserName: username}).Or(User{Email: email}).First(&user).Error
+	err := db.Where(User{UserName: username}).Or(User{Email: email}).First(&user).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		return false, err
+		return "", err
 	}
-	if user.UserID != "" {
-		return true, nil
-	}
-	return false, nil
+	return user.UserID, nil
 }
 
-// 通过用户名密码检验用户
-func CheckUserByUserName(username, password string) (bool, error) {
+// 通过用户Id获取用户
+func GetUserById(userId string) (*User, error) {
 	var user User
-	err := db.Select("user_id").Where(User{UserName: username, Password: password}).First(&user).Error
+	err := db.Where(User{UserID: userId}).First(&user).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		return false, err
+		return nil, err
 	}
 	if user.UserID != "" {
-		return true, nil
+		return &user, nil
 	}
-	return false, nil
-}
-
-// 通过邮箱密码检验用户
-func CheckUserByEmail(email, password string) (bool, error) {
-	var user User
-	err := db.Select("user_id").Where(User{Email: email, Password: password}).First(&user).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return false, err
-	}
-	if user.UserID != "" {
-		return true, nil
-	}
-	return false, nil
+	return nil, nil
 }

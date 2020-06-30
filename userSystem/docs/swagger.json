@@ -59,6 +59,39 @@
             }
         },
         "/api/v1/user/find": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "登录时，当用户输入用户名或邮箱(二选一)后，就调用该接口判断当前用户是否注册",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户名或邮箱(二选一)",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/app.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/app.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/login": {
             "post": {
                 "produces": [
                     "application/json"
@@ -66,19 +99,16 @@
                 "tags": [
                     "用户"
                 ],
-                "summary": "登录时，当用户输入用户名或邮箱后，就调用该接口判断当前手机号是否注册",
+                "summary": "用户登录",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "用户名",
-                        "name": "username",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "邮箱",
-                        "name": "email",
-                        "in": "query"
+                        "description": "登录信息",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.LoginBody"
+                        }
                     }
                 ],
                 "responses": {
@@ -181,6 +211,21 @@
                     "type": "object"
                 },
                 "msg": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.LoginBody": {
+            "type": "object",
+            "required": [
+                "password",
+                "user"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "user": {
                     "type": "string"
                 }
             }

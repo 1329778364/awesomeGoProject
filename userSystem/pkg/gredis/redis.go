@@ -25,8 +25,23 @@ func Setup() {
 }
 
 //设置一个key的值
-func Set(key string, data string, second time.Duration) error {
-	return RedisClient.Set(key, data, second*time.Second).Err()
+func Set(data map[string]string, second time.Duration) error {
+	for k, v := range data {
+		if err := RedisClient.Set(k, v, second*time.Second).Err(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+//针对一个key的数值进行递增操作
+func Incr(key string, second time.Duration) error {
+	_, err := RedisClient.Incr(key).Result()
+	RedisClient.Expire(key, second)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 //查询key的值

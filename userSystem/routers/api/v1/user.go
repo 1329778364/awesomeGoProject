@@ -2,7 +2,9 @@ package v1
 
 import (
 	"github.com/gin-gonic/gin"
+	"strconv"
 	"userSystem/pkg/app"
+	"userSystem/pkg/gredis"
 	"userSystem/pkg/validator"
 	"userSystem/service/user_service"
 )
@@ -35,7 +37,7 @@ func SendMailCode(c *gin.Context) {
 	switch body.Type {
 	case RegisteredType:
 		//判断邮箱是否已注册(不可以存在)
-		_, err := user_service.CheckUser("", body.Email)
+		_, err := user_service.CheckUser(body.Email)
 		if appG.HasError(err) {
 			return
 		}
@@ -48,7 +50,7 @@ func SendMailCode(c *gin.Context) {
 		return
 	case RecoverPasswordType:
 		//判断邮箱是否已注册(必须存在)
-		if ok, err := user_service.CheckUser("", body.Email); !ok {
+		if userId, err := user_service.CheckUser(body.Email); userId == "" {
 			if appG.HasError(err) {
 				return
 			} else {
@@ -71,7 +73,7 @@ func SendMailCode(c *gin.Context) {
 
 type RegisteredBody struct {
 	UserName string `json:"username" validate:"required,checkUsername"`
-	Email    string `json:"email" validate:"required,email"`
+	Email    string `json:"email" validate:"required,checkEmail"`
 	Password string `json:"password" validate:"required,base64"`
 	Code     string `json:"code" validate:"required,number,len=6"`
 }
@@ -89,8 +91,13 @@ func Registered(c *gin.Context) {
 	if !appG.ParseRequest(&body) {
 		return
 	}
+	//判断用户名是否已注册(不可以存在)
+	_, err := user_service.CheckUser(body.UserName)
+	if appG.HasError(err) {
+		return
+	}
 	//判断邮箱是否已注册(不可以存在)
-	_, err := user_service.CheckUser(body.UserName, body.Email)
+	_, err = user_service.CheckUser(body.Email)
 	if appG.HasError(err) {
 		return
 	}
@@ -107,7 +114,7 @@ func Registered(c *gin.Context) {
 	}
 	//注册
 	err = user_service.UserRegistered(
-		&user_service.Registered{Email: body.Email},
+		body.Email,
 		body.UserName,
 		pwVal,
 		body.Code)
@@ -117,34 +124,98 @@ func Registered(c *gin.Context) {
 	appG.SuccessResponse("注册成功")
 }
 
-// @Summary 登录时，当用户输入用户名或邮箱后，就调用该接口判断当前手机号是否注册
+// @Summary 登录时，当用户输入用户名或邮箱(二选一)后，就调用该接口判断当前用户是否注册
 // @Tags 用户
 // @Produce json
-// @Param username query string false "用户名"
-// @Param email query string false "邮箱"
+// @Param query query string false "用户名或邮箱(二选一)"
 // @Success 200 {object} app.Response
 // @Failure 500 {object} app.Response
-// @Router /api/v1/user/find [post]
+// @Router /api/v1/user/find [get]
 func Find(c *gin.Context) {
 	appG := app.Gin{C: c}
-	username := c.Query("username")
-	email := c.Query("email")
-	if username != "" && email == "" {
-		if !validator.VerifyUsernameFormat(username) {
-			appG.BadResponse("用户名不合法")
+	query := c.Query("query")
+	if query == "" {
+		appG.BadResponse("缺少必要参数")
+		return
+	}
+	if validator.VerifyEmailFormat(query) || validator.VerifyUsernameFormat(query) {
+		//判断邮箱是否已注册(必须存在)
+		userId, err := user_service.CheckUser(query)
+		if userId == "" {
+			if appG.HasError(err) {
+				return
+			} else {
+				appG.BadResponse("用户不存在")
+				return
+			}
+		}
+		//生成用于登录的密钥对
+		pubKey, err := user_service.GenerateLoginKey(userId)
+		if appG.HasError(err) {
 			return
 		}
-		appG.SuccessResponse(username)
-	} else if username == "" && email != "" {
-		if !validator.VerifyEmailFormat(email) {
-			appG.BadResponse("邮箱不合法")
-			return
-		}
-		appG.SuccessResponse(email)
+		appG.SuccessResponse(pubKey)
 	} else {
-		appG.BadResponse("请输入用户名或邮箱")
+		appG.BadResponse("参数不合法")
 	}
 }
 
-//TODO: 用户登录
+type LoginBody struct {
+	User     string `json:"user" validate:"required,checkUsername|checkEmail"`
+	Password string `json:"password" validate:"required,base64"`
+}
+
+// @Summary 用户登录
+// @Tags 用户
+// @Produce json
+// @Param data body LoginBody true "登录信息"
+// @Success 200 {object} app.Response
+// @Failure 500 {object} app.Response
+// @Router /api/v1/user/login [post]
+func Login(c *gin.Context) {
+	appG := app.Gin{C: c}
+	var body LoginBody
+	if !appG.ParseRequest(&body) {
+		return
+	}
+	//判断邮箱是否已注册(必须存在)
+	userId, err := user_service.CheckUser(body.User)
+	if userId == "" {
+		if appG.HasError(err) {
+			return
+		} else {
+			appG.BadResponse("用户不存在")
+			return
+		}
+	}
+	//判断密码输错次数，防止暴力破解
+	numStr, err := gredis.Get(user_service.LoginErrNum(userId))
+	if appG.HasError(err) {
+		return
+	}
+	if numStr != "" {
+		num, err := strconv.Atoi(numStr)
+		if appG.HasError(err) {
+			return
+		}
+		if num > 3 {
+			appG.BadResponse("当前账号今日登录失败次数超过3次，为保证您的账号安全，系统已锁定当前账号，您可明天再登录或立即重置密码后使用新密码登录！")
+			return
+		}
+	}
+	//解密验证
+	pwVal, err := user_service.DecryptPassword(
+		&user_service.Login{UserId: userId},
+		body.Password)
+	if appG.HasError(err) {
+		return
+	}
+	//登录
+	err = user_service.UserLogin(userId, pwVal)
+	if appG.HasError(err) {
+		return
+	}
+	appG.SuccessResponse("登录成功")
+}
+
 //TODO: 找回密码

@@ -8,6 +8,16 @@ definitions:
       msg:
         type: string
     type: object
+  v1.LoginBody:
+    properties:
+      password:
+        type: string
+      user:
+        type: string
+    required:
+    - password
+    - user
+    type: object
   v1.MailCodeBody:
     properties:
       email:
@@ -74,15 +84,11 @@ paths:
       tags:
       - 测试
   /api/v1/user/find:
-    post:
+    get:
       parameters:
-      - description: 用户名
+      - description: 用户名或邮箱(二选一)
         in: query
-        name: username
-        type: string
-      - description: 邮箱
-        in: query
-        name: email
+        name: query
         type: string
       produces:
       - application/json
@@ -95,7 +101,30 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/app.Response'
-      summary: 登录时，当用户输入用户名或邮箱后，就调用该接口判断当前手机号是否注册
+      summary: 登录时，当用户输入用户名或邮箱(二选一)后，就调用该接口判断当前用户是否注册
+      tags:
+      - 用户
+  /api/v1/user/login:
+    post:
+      parameters:
+      - description: 登录信息
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/v1.LoginBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 用户登录
       tags:
       - 用户
   /api/v1/user/registered:
