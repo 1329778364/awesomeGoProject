@@ -2,7 +2,6 @@ package app
 
 import (
 	"net/http"
-	"userSystem/pkg/errmsg"
 )
 
 func (g *Gin) Response(httpCode int, errMsg string, data interface{}) {
@@ -53,7 +52,7 @@ func (g *Gin) ErrorResponse(data interface{}) {
 func (g *Gin) HasError(err error) bool {
 	if err != nil {
 		switch err.(type) {
-		case *errmsg.BadMsg:
+		case *BadMsg:
 			g.BadResponse(err.Error())
 		default:
 			g.ErrorResponse(err.Error())
