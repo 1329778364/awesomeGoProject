@@ -2,7 +2,7 @@ package user_service
 
 import (
 	"userSystem/models"
-	"userSystem/pkg/app"
+	"userSystem/pkg/errmsg"
 	"userSystem/pkg/gredis"
 	"userSystem/pkg/mail"
 	"userSystem/pkg/util"
@@ -81,7 +81,7 @@ func CheckUser(query string) (userId string, err error) {
 			return "", err
 		}
 		if userId != "" {
-			return userId, app.NewBadMsg("邮箱已注册")
+			return userId, errmsg.NewBadMsg("邮箱已注册")
 		}
 	} else if validator.VerifyUsernameFormat(query) {
 		userId, err = models.CheckUser(query, "")
@@ -89,10 +89,10 @@ func CheckUser(query string) (userId string, err error) {
 			return "", err
 		}
 		if userId != "" {
-			return userId, app.NewBadMsg("用户名已注册")
+			return userId, errmsg.NewBadMsg("用户名已注册")
 		}
 	}
-	return "", app.NewBadMsg("用户不存在")
+	return "", errmsg.NewBadMsg("用户不存在")
 }
 
 //发送验证码(注册或忘记密码)
@@ -103,7 +103,7 @@ func SendCode(actionType ActionType) (string, error) {
 		return "", err
 	}
 	if times > 14*60 {
-		return "", app.NewBadMsg("距离您上次发送验证码不足一分钟，请检查收件箱或垃圾箱，或两分钟后再尝试重新获取")
+		return "", errmsg.NewBadMsg("距离您上次发送验证码不足一分钟，请检查收件箱或垃圾箱，或两分钟后再尝试重新获取")
 	}
 	//生成6位数字验证码
 	code := util.GetRandomCode(6)
@@ -167,11 +167,11 @@ func DecryptPassword(actionType ActionType, password string) (string, error) {
 		return "", err
 	}
 	if priKey == "" {
-		return "", app.NewBadMsg("密钥失效，请重新获取验证码后再操作")
+		return "", errmsg.NewBadMsg("密钥失效，请重新获取验证码后再操作")
 	}
 	pw, err := util.PrivateDecrypt(priKey, password)
 	if err != nil {
-		return "", app.NewBadMsg("密钥验证失败，请检查公钥")
+		return "", errmsg.NewBadMsg("密钥验证失败，请检查公钥")
 	}
 	return pw, nil
 }
@@ -185,10 +185,10 @@ func UserRegistered(email, username, password, code string) error {
 		return err
 	}
 	if gcode == "" {
-		return app.NewBadMsg("当前验证码已失效，请重新获取")
+		return errmsg.NewBadMsg("当前验证码已失效，请重新获取")
 	}
 	if gcode != code {
-		return app.NewBadMsg("您输入的验证码错误，请重新输入")
+		return errmsg.NewBadMsg("您输入的验证码错误，请重新输入")
 	}
 	//生成salt随机盐值
 	salt := util.GetRandomString(8)
@@ -226,7 +226,7 @@ func UserLogin(userId, password string) error {
 		if err := gredis.Incr(LoginErrNum(userId), util.GetRemainSecondsOneDay()); err != nil {
 			return err
 		}
-		return app.NewBadMsg("密码错误")
+		return errmsg.NewBadMsg("密码错误")
 	}
 	//删除缓存密钥对
 	gredis.Delete(actionType.PubKey())
@@ -248,10 +248,10 @@ func ResetPassword(userId, email, password, code string) error {
 		return err
 	}
 	if gcode == "" {
-		return app.NewBadMsg("当前验证码已失效，请重新获取")
+		return errmsg.NewBadMsg("当前验证码已失效，请重新获取")
 	}
 	if gcode != code {
-		return app.NewBadMsg("您输入的验证码错误，请重新输入")
+		return errmsg.NewBadMsg("您输入的验证码错误，请重新输入")
 	}
 	//生成salt随机盐值
 	salt := util.GetRandomString(8)

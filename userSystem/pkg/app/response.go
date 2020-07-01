@@ -2,7 +2,14 @@ package app
 
 import (
 	"net/http"
+	"userSystem/pkg/errmsg"
 )
+
+type Response struct {
+	Code int         `json:"code"`
+	Msg  string      `json:"msg"`
+	Data interface{} `json:"data"`
+}
 
 func (g *Gin) Response(httpCode int, errMsg string, data interface{}) {
 	g.C.JSON(httpCode, Response{
@@ -52,7 +59,7 @@ func (g *Gin) ErrorResponse(data interface{}) {
 func (g *Gin) HasError(err error) bool {
 	if err != nil {
 		switch err.(type) {
-		case *BadMsg:
+		case *errmsg.BadMsg:
 			g.BadResponse(err.Error())
 		default:
 			g.ErrorResponse(err.Error())

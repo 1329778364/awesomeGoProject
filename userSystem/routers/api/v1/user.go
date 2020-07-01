@@ -97,15 +97,15 @@ func Registered(c *gin.Context) {
 	if userId != "" && appG.HasError(err) {
 		return
 	}
-	//解密验证
+	//解密密码
 	pwVal, err := user_service.DecryptPassword(
 		&user_service.Registered{Email: body.Email},
 		body.Password)
 	if appG.HasError(err) {
 		return
 	}
-	if !validator.VerifyPasswordFormat(pwVal) {
-		appG.BadResponse("密码必须包含数字、英文大小写字母、特殊符号（特殊符号包括: !@#~$%^&*()+|_），长度必须大于等于8位且小于等于16位")
+	//验证密码强度
+	if appG.HasError(validator.VerifyPasswordFormat(pwVal)) {
 		return
 	}
 	//注册
@@ -235,8 +235,8 @@ func Forget(c *gin.Context) {
 	if appG.HasError(err) {
 		return
 	}
-	if !validator.VerifyPasswordFormat(pwVal) {
-		appG.BadResponse("密码必须包含数字、英文大小写字母、特殊符号（特殊符号包括: !@#~$%^&*()+|_），长度必须大于等于8位且小于等于16位")
+	//验证密码强度
+	if appG.HasError(validator.VerifyPasswordFormat(pwVal)) {
 		return
 	}
 	//重置密码

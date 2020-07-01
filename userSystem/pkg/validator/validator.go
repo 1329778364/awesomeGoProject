@@ -7,6 +7,7 @@ import (
 	zhTranslations "github.com/go-playground/validator/v10/translations/zh"
 	"regexp"
 	"strings"
+	"userSystem/pkg/errmsg"
 )
 
 var (
@@ -68,25 +69,26 @@ func VerifyEmailFormat(email string) bool {
 		MatchString(email)
 }
 
-func VerifyPasswordFormat(password string) bool {
+func VerifyPasswordFormat(password string) error {
+	err := errmsg.NewBadMsg("密码必须包含数字、英文大小写字母、特殊符号（特殊符号包括: !@#~$%^&*()+|_），长度必须大于等于8位且小于等于16位")
 	if len(password) < 8 || len(password) > 16 {
-		return false
+		return err
 	}
 	num := `[0-9]{1}`
 	a_z := `[a-z]{1}`
 	A_Z := `[A-Z]{1}`
 	symbol := `[!@#~$%^&*()+|_]{1}`
 	if ok, _ := regexp.MatchString(num, password); !ok {
-		return false
+		return err
 	}
 	if ok, _ := regexp.MatchString(a_z, password); !ok {
-		return false
+		return err
 	}
 	if ok, _ := regexp.MatchString(A_Z, password); !ok {
-		return false
+		return err
 	}
 	if ok, _ := regexp.MatchString(symbol, password); !ok {
-		return false
+		return err
 	}
-	return true
+	return nil
 }
