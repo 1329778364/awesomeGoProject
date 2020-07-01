@@ -222,7 +222,7 @@ func UserLogin(userId, password string) error {
 	}
 	//判断密码是否正确
 	if util.MD5(password+user.Salt) != user.Password {
-		//记录密码输出次数
+		//记录密码输错次数
 		if err := gredis.Incr(LoginErrNum(userId), util.GetRemainSecondsOneDay()); err != nil {
 			return err
 		}
