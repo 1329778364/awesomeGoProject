@@ -8,6 +8,7 @@ import (
 	"github.com/unrolled/secure"
 	"net/http"
 	"strings"
+	"userSystem/middleware/jwt"
 	v1 "userSystem/routers/api/v1"
 )
 
@@ -26,11 +27,6 @@ func InitRouter() *gin.Engine {
 	//加载静态文件
 	r.Static("/web", "routers/static")
 	apiV1 := r.Group("/api/v1")
-	test := apiV1.Group("/test")
-	{
-		test.GET("/get", v1.TestGet)
-		test.GET("/tmpl", v1.TestTmpl)
-	}
 	user := apiV1.Group("/user")
 	{
 		user.POST("/sendMailCode", v1.SendMailCode)
@@ -38,6 +34,12 @@ func InitRouter() *gin.Engine {
 		user.POST("/forget", v1.Forget)
 		user.GET("/find", v1.Find)
 		user.POST("/login", v1.Login)
+	}
+	test := apiV1.Group("/test")
+	test.Use(jwt.JWT())
+	{
+		test.GET("/get", v1.TestGet)
+		test.GET("/tmpl", v1.TestTmpl)
 	}
 	return r
 }

@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+type App struct {
+	JwtSecret string
+}
+
 type Server struct {
 	RunMode      string
 	HttpPort     int
@@ -33,6 +37,8 @@ type Mail struct {
 	Port string
 }
 
+var AppSetting = &App{}
+
 var ServerSetting = &Server{}
 
 var DatabaseSetting = &Database{}
@@ -50,6 +56,7 @@ func Setup() {
 	if err != nil {
 		log.Fatalf("setting.Setup, fail to parse 'conf/app.ini': %v", err)
 	}
+	mapTo("app", AppSetting)
 	mapTo("server", ServerSetting)
 	ServerSetting.ReadTimeout = ServerSetting.ReadTimeout * time.Second
 	ServerSetting.WriteTimeout = ServerSetting.WriteTimeout * time.Second

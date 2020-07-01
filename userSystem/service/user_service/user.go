@@ -193,7 +193,7 @@ func UserRegistered(email, username, password, code string) error {
 	//生成salt随机盐值
 	salt := util.GetRandomString(8)
 	//md5 密码+salt
-	md5PW := util.MD5(password + salt)
+	md5PW := util.EncodeMD5(password + salt)
 	//插入到数据库
 	err = models.User{
 		UserID:   util.GetUUIDString(false),
@@ -221,7 +221,7 @@ func UserLogin(userId, password string) error {
 		return err
 	}
 	//判断密码是否正确
-	if util.MD5(password+user.Salt) != user.Password {
+	if util.EncodeMD5(password+user.Salt) != user.Password {
 		//记录密码输错次数
 		if err := gredis.Incr(LoginErrNum(userId), util.GetRemainSecondsOneDay()); err != nil {
 			return err
@@ -256,7 +256,7 @@ func ResetPassword(userId, email, password, code string) error {
 	//生成salt随机盐值
 	salt := util.GetRandomString(8)
 	//md5 密码+salt
-	md5PW := util.MD5(password + salt)
+	md5PW := util.EncodeMD5(password + salt)
 	//修改密码
 	err = user.UpdatePassword(md5PW, salt)
 	if err != nil {

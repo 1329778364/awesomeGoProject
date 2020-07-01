@@ -5,9 +5,8 @@ import (
 	"encoding/hex"
 )
 
-// 生成32位MD5
-func MD5(text string) string {
-	ctx := md5.New()
-	ctx.Write([]byte(text))
-	return hex.EncodeToString(ctx.Sum(nil))
+func EncodeMD5(value string) string {
+	m := md5.New()
+	m.Write([]byte(value))
+	return hex.EncodeToString(m.Sum(nil))
 }

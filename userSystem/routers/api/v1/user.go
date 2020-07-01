@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"userSystem/pkg/app"
 	"userSystem/pkg/gredis"
+	"userSystem/pkg/util"
 	"userSystem/pkg/validator"
 	"userSystem/service/user_service"
 )
@@ -201,7 +202,12 @@ func Login(c *gin.Context) {
 	if appG.HasError(err) {
 		return
 	}
-	appG.SuccessResponse("登录成功")
+	//生成jwt-token
+	token, err := util.GenerateToken(userId)
+	if appG.HasError(err) {
+		return
+	}
+	appG.SuccessResponse(token)
 }
 
 type RecoverPasswordBody struct {
