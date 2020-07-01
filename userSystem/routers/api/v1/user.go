@@ -37,8 +37,8 @@ func SendMailCode(c *gin.Context) {
 	switch body.Type {
 	case RegisteredType:
 		//判断邮箱是否已注册(不可以存在)
-		_, err := user_service.CheckUser(body.Email)
-		if appG.HasError(err) {
+		userId, err := user_service.CheckUser(body.Email)
+		if userId != "" && appG.HasError(err) {
 			return
 		}
 		//发送验证码
@@ -50,13 +50,9 @@ func SendMailCode(c *gin.Context) {
 		return
 	case RecoverPasswordType:
 		//判断邮箱是否已注册(必须存在)
-		if userId, err := user_service.CheckUser(body.Email); userId == "" {
-			if appG.HasError(err) {
-				return
-			} else {
-				appG.BadResponse("用户不存在")
-				return
-			}
+		userId, err := user_service.CheckUser(body.Email)
+		if userId == "" && appG.HasError(err) {
+			return
 		}
 		//发送验证码
 		pubKey, err := user_service.SendCode(&user_service.RecoverPassword{Email: body.Email})
@@ -91,14 +87,14 @@ func Registered(c *gin.Context) {
 	if !appG.ParseRequest(&body) {
 		return
 	}
-	//判断用户名是否已注册(不可以存在)
-	_, err := user_service.CheckUser(body.UserName)
-	if appG.HasError(err) {
+	//判断邮箱是否已注册(不可以存在)
+	userId, err := user_service.CheckUser(body.Email)
+	if userId != "" && appG.HasError(err) {
 		return
 	}
-	//判断邮箱是否已注册(不可以存在)
-	_, err = user_service.CheckUser(body.Email)
-	if appG.HasError(err) {
+	//判断用户名是否已注册(不可以存在)
+	userId, err = user_service.CheckUser(body.UserName)
+	if userId != "" && appG.HasError(err) {
 		return
 	}
 	//解密验证
@@ -139,15 +135,10 @@ func Find(c *gin.Context) {
 		return
 	}
 	if validator.VerifyEmailFormat(query) || validator.VerifyUsernameFormat(query) {
-		//判断邮箱是否已注册(必须存在)
+		//判断邮箱或用户名是否已注册(必须存在)
 		userId, err := user_service.CheckUser(query)
-		if userId == "" {
-			if appG.HasError(err) {
-				return
-			} else {
-				appG.BadResponse("用户不存在")
-				return
-			}
+		if userId == "" && appG.HasError(err) {
+			return
 		}
 		//生成用于登录的密钥对
 		pubKey, err := user_service.GenerateLoginKey(userId)
@@ -180,13 +171,8 @@ func Login(c *gin.Context) {
 	}
 	//判断邮箱是否已注册(必须存在)
 	userId, err := user_service.CheckUser(body.User)
-	if userId == "" {
-		if appG.HasError(err) {
-			return
-		} else {
-			appG.BadResponse("用户不存在")
-			return
-		}
+	if userId == "" && appG.HasError(err) {
+		return
 	}
 	//判断密码输错次数，防止暴力破解
 	numStr, err := gredis.Get(user_service.LoginErrNum(userId))
@@ -198,7 +184,7 @@ func Login(c *gin.Context) {
 		if appG.HasError(err) {
 			return
 		}
-		if num > 3 {
+		if num > 2 {
 			appG.BadResponse("当前账号今日登录失败次数超过3次，为保证您的账号安全，系统已锁定当前账号，您可明天再登录或立即重置密码后使用新密码登录！")
 			return
 		}
@@ -218,4 +204,45 @@ func Login(c *gin.Context) {
 	appG.SuccessResponse("登录成功")
 }
 
-//TODO: 找回密码
+type RecoverPasswordBody struct {
+	Email       string `json:"email" validate:"required,checkEmail"`
+	NewPassword string `json:"newPassword" validate:"required,base64"`
+	Code        string `json:"code" validate:"required,number,len=6"`
+}
+
+// @Summary 忘记密码找回
+// @Tags 用户
+// @Produce json
+// @Param data body RecoverPasswordBody true "密码修改信息"
+// @Success 200 {object} app.Response
+// @Failure 500 {object} app.Response
+// @Router /api/v1/user/forget [post]
+func Forget(c *gin.Context) {
+	appG := app.Gin{C: c}
+	var body RecoverPasswordBody
+	if !appG.ParseRequest(&body) {
+		return
+	}
+	//判断邮箱是否已注册(必须存在)
+	userId, err := user_service.CheckUser(body.Email)
+	if userId == "" && appG.HasError(err) {
+		return
+	}
+	//解密验证
+	pwVal, err := user_service.DecryptPassword(
+		&user_service.RecoverPassword{Email: body.Email},
+		body.NewPassword)
+	if appG.HasError(err) {
+		return
+	}
+	if !validator.VerifyPasswordFormat(pwVal) {
+		appG.BadResponse("密码必须包含数字、英文大小写字母、特殊符号（特殊符号包括: !@#~$%^&*()+|_），长度必须大于等于8位且小于等于16位")
+		return
+	}
+	//重置密码
+	err = user_service.ResetPassword(userId, body.Email, pwVal, body.Code)
+	if appG.HasError(err) {
+		return
+	}
+	appG.SuccessResponse("修改密码成功")
+}

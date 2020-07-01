@@ -58,3 +58,12 @@ func GetUserById(userId string) (*User, error) {
 	}
 	return nil, nil
 }
+
+// 修改密码
+func (u User) UpdatePassword(password, salt string) error {
+	err := db.Model(&u).Update(map[string]interface{}{"password": password, "salt": salt}).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+	return nil
+}

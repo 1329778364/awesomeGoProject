@@ -28,6 +28,19 @@ definitions:
     - email
     - type
     type: object
+  v1.RecoverPasswordBody:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+      newPassword:
+        type: string
+    required:
+    - code
+    - email
+    - newPassword
+    type: object
   v1.RegisteredBody:
     properties:
       code:
@@ -102,6 +115,29 @@ paths:
           schema:
             $ref: '#/definitions/app.Response'
       summary: 登录时，当用户输入用户名或邮箱(二选一)后，就调用该接口判断当前用户是否注册
+      tags:
+      - 用户
+  /api/v1/user/forget:
+    post:
+      parameters:
+      - description: 密码修改信息
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/v1.RecoverPasswordBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.Response'
+      summary: 忘记密码找回
       tags:
       - 用户
   /api/v1/user/login:
