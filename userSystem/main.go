@@ -23,6 +23,9 @@ func init() {
 // @title userSystem
 // @version 1.0
 // @description 登录注册模块设计：密文传输+jwt身份验证
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	gin.SetMode(setting.ServerSetting.RunMode)
 	validator.InitValidator()

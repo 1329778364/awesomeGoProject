@@ -77,6 +77,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/app.Response'
+      security:
+      - ApiKeyAuth: []
       summary: 测试Get请求
       tags:
       - 测试
@@ -93,6 +95,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/app.Response'
+      security:
+      - ApiKeyAuth: []
       summary: 测试tmpl模板文件
       tags:
       - 测试
@@ -163,6 +167,29 @@ paths:
       summary: 用户登录
       tags:
       - 用户
+  /api/v1/user/logout:
+    get:
+      parameters:
+      - description: 用户名或邮箱(二选一)
+        in: query
+        name: query
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 注销登录
+      tags:
+      - 用户
   /api/v1/user/registered:
     post:
       parameters:
@@ -209,4 +236,9 @@ paths:
       summary: 用户注册前和忘记密码的时候请求发送验证码
       tags:
       - 用户
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

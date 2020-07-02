@@ -252,3 +252,35 @@ func Forget(c *gin.Context) {
 	}
 	appG.SuccessResponse("修改密码成功")
 }
+
+// @Summary 注销登录
+// @Tags 用户
+// @Produce json
+// @Security ApiKeyAuth
+// @Param query query string false "用户名或邮箱(二选一)"
+// @Success 200 {object} app.Response
+// @Failure 500 {object} app.Response
+// @Router /api/v1/user/logout [get]
+func Logout(c *gin.Context) {
+	appG := app.Gin{C: c}
+	query := c.Query("query")
+	if query == "" {
+		appG.BadResponse("缺少必要参数")
+		return
+	}
+	if validator.VerifyEmailFormat(query) || validator.VerifyUsernameFormat(query) {
+		//判断邮箱或用户名是否已注册(必须存在)
+		userId, err := user_service.CheckUser(query)
+		if userId == "" && appG.HasError(err) {
+			return
+		}
+		//注销登录
+		err = user_service.Logout(userId)
+		if appG.HasError(err) {
+			return
+		}
+		appG.SuccessResponse("注销登录成功")
+	} else {
+		appG.BadResponse("参数不合法")
+	}
+}

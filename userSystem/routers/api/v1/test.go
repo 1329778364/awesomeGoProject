@@ -9,6 +9,7 @@ import (
 // @Summary 测试Get请求
 // @Tags 测试
 // @Produce  json
+// @Security ApiKeyAuth
 // @Success 200 {object} app.Response
 // @Failure 500 {object} app.Response
 // @Router /api/v1/test/get [get]
@@ -20,6 +21,7 @@ func TestGet(c *gin.Context) {
 // @Summary 测试tmpl模板文件
 // @Tags 测试
 // @Produce  json
+// @Security ApiKeyAuth
 // @Success 200 {object} app.Response
 // @Failure 500 {object} app.Response
 // @Router /api/v1/test/tmpl [get]

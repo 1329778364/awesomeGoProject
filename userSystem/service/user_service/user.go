@@ -1,6 +1,8 @@
 package user_service
 
 import (
+	"strconv"
+	"time"
 	"userSystem/models"
 	"userSystem/pkg/errmsg"
 	"userSystem/pkg/gredis"
@@ -68,8 +70,13 @@ func (l *Login) PriKey() string {
 }
 
 var (
+	//登录密码错误统计
 	LoginErrNum = func(userId string) string {
 		return "loginErrNum-" + userId
+	}
+	//注销登录、忘记密码预黑名单
+	LoginBlacklist = func(userId string) string {
+		return "loginBlacklist-" + userId
 	}
 )
 
@@ -268,5 +275,22 @@ func ResetPassword(userId, email, password, code string) error {
 	gredis.Delete(actionType.PriKey())
 	//删除密码错误记录
 	gredis.Delete(LoginErrNum(userId))
+	//清除登录信息
+	if err = Logout(userId); err != nil {
+		return err
+	}
+	return nil
+}
+
+//注销登录
+func Logout(userId string) error {
+	//把要注销的用户的 userId 和当前时间（TIME） 组成 key-value 对加入预黑名单，
+	//下次请求来时，若其 uuid 和黑名单中的对应，并且签发时间在 TIME 之前，则将其注销。
+	//过期时间和jwt-token失效时间相同
+	if err := gredis.Set(map[string]string{
+		LoginBlacklist(util.EncodeMD5(userId)): strconv.FormatInt(time.Now().Unix(), 10)},
+		8*60*60); err != nil {
+		return err
+	}
 	return nil
 }
